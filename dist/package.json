@@ -1,7 +1,6 @@
 {
   "name": "pulumi-alibaba",
   "version": "0.0.1",
-  "main": "./dist/index.js",
   "dependencies": {
     "@pulumi/pulumi": "^2.21.2",
     "@serverless-devs/core": "^0.0.37",
