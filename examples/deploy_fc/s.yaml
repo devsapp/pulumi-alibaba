@@ -1,0 +1,13 @@
+edition: 1.0.0          #  命令行YAML规范版本，遵循语义化版本（Semantic Versioning）规范
+name: pulumiApp         #  项目名称
+access: aliyun-release  #  秘钥别名
+
+services:
+  pulumi-test: #  服务名称
+    component: pulumi-alibaba  # 组件名称
+    props: #  组件的属性值
+      region: cn-hangzhou
+      workDir: ./
+      projectName: test-project
+      stackName: test-stack
+      cloudPlatform: alicloud
