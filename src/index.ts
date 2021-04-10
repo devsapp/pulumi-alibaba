@@ -9,6 +9,7 @@ import * as util from 'util';
 import { getLatestVersionOfPackage } from './utils/npm-pkg';
 import * as _ from 'lodash';
 import semver from 'semver';
+import { IInputs, ICredentials, IProperties } from './interface';
 
 const { runPulumiCmd } = require('@pulumi/pulumi/x/automation/cmd');
 
@@ -20,6 +21,7 @@ const DEFAULT = {
 };
 
 const SUPPORTED_CLOUD_PLATFORMS = ['alicloud'];
+const SUPPORTED_RUNTIME = ['nodejs', 'go', 'python', 'dotnet'];
 const PULUMI_INSTALL_FILE_PATH = path.join(__dirname, 'utils/pulumi/install.js');
 const MIN_PULUMI_VERSION = 'v2.21.0';
 
@@ -65,16 +67,15 @@ export default class PulumiComponent {
     }
   }
   // 解析入参
-  async handlerInputs(inputs) {
+  async handlerInputs(inputs: IInputs) {
     process.setMaxListeners(0);
-    const prop = inputs?.Properties || inputs?.properties;
-    const project = inputs?.project || inputs?.Project;
-    const provider = project?.Provider || project?.provider;
-    const accessAlias = project?.AccessAlias || project?.accessAlias;
-    const args = inputs?.Args || inputs?.args;
-    const credentials = await core.getCredential(provider, accessAlias || '');
-
+    const prop: IProperties = inputs?.props;
+    const accessAlias = inputs?.credentials?.Alias;
+    const args = inputs?.args;
+    const credentials: ICredentials = await core.getCredential(accessAlias);
+    this.logger.debug(`credentials is: ${JSON.stringify(credentials)}`);
     const workDir = prop?.workDir || DEFAULT.workDir;
+    // @ts-ignore
     const runtime: pulumiAuto.ProjectRuntime = prop?.runtime || DEFAULT.runtime;
     const region = prop?.region || DEFAULT.region;
     const cloudPlatform = prop?.cloudPlatform;
@@ -82,8 +83,11 @@ export default class PulumiComponent {
     const projectName = prop?.projectName;
 
     if (!cloudPlatform || (SUPPORTED_CLOUD_PLATFORMS.indexOf(cloudPlatform) < 0)) {
-      this.logger.error(`\n${cloudPlatform} not supported now, supported cloud platform includes [${SUPPORTED_CLOUD_PLATFORMS}]`);
       throw new Error(`${cloudPlatform} not supported now, supported cloud platform includes ${SUPPORTED_CLOUD_PLATFORMS}`);
+    }
+
+    if (SUPPORTED_RUNTIME.indexOf(runtime) < 0) {
+      throw new Error(`\n${runtime} not supported now, supported runtime includes [${SUPPORTED_RUNTIME}]`);
     }
 
     return {
@@ -324,6 +328,7 @@ export default class PulumiComponent {
     // await this.installPlugins(cloudPlatform, stackName, stack);
     const refreshRes = await stack.refresh({ onOutput: isSilent ? undefined : console.log });
     this.logger.debug(`refresh res: ${JSON.stringify(refreshRes)}`);
+
 
     const res = await stack.up({ onOutput: isSilent ? undefined : console.log });
 

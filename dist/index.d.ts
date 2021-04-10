@@ -1,18 +1,19 @@
 import * as pulumiAuto from '@pulumi/pulumi/x/automation';
 import * as core from '@serverless-devs/core';
+import { IInputs, ICredentials } from './interface';
 export default class PulumiComponent {
     logger: core.ILogger;
     constructor();
     checkPulumiVersion(): Promise<void>;
-    handlerInputs(inputs: any): Promise<{
-        credentials: any;
-        workDir: any;
+    handlerInputs(inputs: IInputs): Promise<{
+        credentials: ICredentials;
+        workDir: string;
         runtime: pulumiAuto.ProjectRuntime;
-        region: any;
-        args: any;
-        cloudPlatform: any;
-        stackName: any;
-        projectName: any;
+        region: string;
+        args: string;
+        cloudPlatform: string;
+        stackName: string;
+        projectName: string;
     }>;
     loginPulumi(url?: string, isLocal?: boolean, isSilent?: boolean): Promise<void>;
     login(inputs: any): Promise<void>;
