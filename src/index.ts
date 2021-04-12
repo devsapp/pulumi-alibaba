@@ -70,7 +70,7 @@ export default class PulumiComponent {
   async handlerInputs(inputs: IInputs) {
     process.setMaxListeners(0);
     const prop: IProperties = inputs?.props;
-    const accessAlias = inputs?.credentials?.Alias;
+    const accessAlias = inputs?.project?.access;
     const args = inputs?.args;
     const credentials: ICredentials = await core.getCredential(accessAlias);
     this.logger.debug(`credentials is: ${JSON.stringify(credentials)}`);
