@@ -60,6 +60,19 @@ export default class PulumiComponent {
       PULUMI_HOME: this.pulumiHome,
     });
   }
+
+  async report(componentName: string, command: string, accountID?: string, access?: string): Promise<void> {
+    let uid: string = accountID;
+    if (_.isEmpty(accountID)) {
+      const credentials: ICredentials = await core.getCredential(access);
+      uid = credentials.AccountID;
+    }
+
+    core.reportComponent(command, {
+      command: componentName,
+      uid,
+    });
+  }
   async checkPulumiVersion() {
     const curPulumiVersion = (await runPulumiCmd(['version'], process.cwd(), this.pulumiEnvs)).stdout;
     if (semver.lt(curPulumiVersion, MIN_PULUMI_VERSION)) {
@@ -70,9 +83,9 @@ export default class PulumiComponent {
   async handlerInputs(inputs: IInputs) {
     process.setMaxListeners(0);
     const prop: IProperties = inputs?.props;
-    const accessAlias = inputs?.project?.access;
+    const access = inputs?.project?.access;
     const args = inputs?.args;
-    const credentials: ICredentials = await core.getCredential(accessAlias);
+    const credentials: ICredentials = await core.getCredential(access);
     this.logger.debug(`credentials is: ${JSON.stringify(credentials)}`);
     const workDir = prop?.workDir || DEFAULT.workDir;
     // @ts-ignore
@@ -99,6 +112,7 @@ export default class PulumiComponent {
       cloudPlatform,
       stackName,
       projectName,
+      access,
     };
   }
 
@@ -113,6 +127,7 @@ export default class PulumiComponent {
 
   async login(inputs): Promise<void> {
     const { args, credentials } = await this.handlerInputs(inputs);
+    await this.report('pulumi', 'login', credentials.AccountID);
     this.logger.debug(`args: ${JSON.stringify(args)}`);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
@@ -131,14 +146,7 @@ export default class PulumiComponent {
       return;
     }
     const loginUrl = nonOptionsArgs[0];
-    await core.report('组件调用', {
-      type: 'component',
-      context: 'pulumi',
-      params: {
-        action: 'login',
-        account: credentials.AccountID,
-      },
-    });
+
     await this.loginPulumi(loginUrl, isLocal, isSilent);
   }
 
@@ -220,14 +228,7 @@ export default class PulumiComponent {
       stackName,
       projectName,
       cloudPlatform } = await this.handlerInputs(inputs);
-    await core.report('组件调用', {
-      type: 'component',
-      context: 'pulumi',
-      params: {
-        action: 'stack',
-        account: credentials.AccountID,
-      },
-    });
+
     this.logger.debug(`args: ${JSON.stringify(args)}`);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
@@ -251,6 +252,7 @@ export default class PulumiComponent {
 
     switch (subCmd) {
       case 'init': {
+        await this.report('pulumi', 'stack init', credentials.AccountID);
         this.logger.info(`Initializing stack ${stackName} of project ${projectName}...`);
         const stack: pulumiAuto.Stack = await this.createStack(workDir, projectName, runtime, stackName);
         this.logger.info(`Stack ${stackName} of project ${projectName} created.`);
@@ -262,12 +264,14 @@ export default class PulumiComponent {
         break;
       }
       case 'rm': {
+        await this.report('pulumi', 'stack rm', credentials.AccountID);
         this.logger.info(`Removing stack ${stackName}...`);
         await this.removeStack(workDir, stackName);
         this.logger.info(`Stack ${stackName} of project ${projectName} removed.`);
         break;
       }
       case 'ls': {
+        await this.report('pulumi', 'stack ls', credentials.AccountID);
         const curStack: pulumiAuto.StackSummary = await this.listStack(workDir, stackName);
         if (curStack) {
           this.logger.info(`Summary of stack ${stackName} is: `);
@@ -296,14 +300,7 @@ export default class PulumiComponent {
       region,
       args } = await this.handlerInputs(inputs);
 
-    await core.report('组件调用', {
-      type: 'component',
-      context: 'pulumi',
-      params: {
-        action: 'up',
-        account: credentials.AccountID,
-      },
-    });
+    await this.report('pulumi', 'up', credentials.AccountID);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
@@ -351,14 +348,7 @@ export default class PulumiComponent {
       region,
       args } = await this.handlerInputs(inputs);
 
-    await core.report('组件调用', {
-      type: 'component',
-      context: 'pulumi',
-      params: {
-        action: 'destroy',
-        account: credentials.AccountID,
-      },
-    });
+    await this.report('pulumi', 'up', credentials.AccountID);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
