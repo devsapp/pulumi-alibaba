@@ -4,6 +4,7 @@ import { IInputs, ICredentials } from './interface';
 export default class PulumiComponent {
     logger: core.ILogger;
     constructor();
+    report(componentName: string, command: string, accountID?: string, access?: string): Promise<void>;
     checkPulumiVersion(): Promise<void>;
     handlerInputs(inputs: IInputs): Promise<{
         credentials: ICredentials;
@@ -14,6 +15,7 @@ export default class PulumiComponent {
         cloudPlatform: string;
         stackName: string;
         projectName: string;
+        access: string;
     }>;
     loginPulumi(url?: string, isLocal?: boolean, isSilent?: boolean): Promise<void>;
     login(inputs: any): Promise<void>;
