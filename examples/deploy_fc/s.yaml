@@ -4,8 +4,8 @@ access: default  #  秘钥别名
 
 services:
   pulumi-test: #  服务名称
-    # component: pulumi-alibaba  # 组件名称
-    component: /Users/zqf/Documents/git_proj/devsapp/component/pulumi-alibaba/
+    component: pulumi-alibaba  # 组件名称
+    # component: /Users/zqf/Documents/git_proj/devsapp/component/pulumi-alibaba/
     props: #  组件的属性值
       region: cn-hangzhou
       workDir: ./
