@@ -28,6 +28,7 @@ export default class PulumiComponent {
     destroy(inputs: any): Promise<any>;
     installPlugins(cloudPlatform: string, stackName: string, stack: pulumiAuto.Stack): Promise<void>;
     installPluginFromLocal(inputs: any): Promise<void>;
+    installPluginFromUrl(inputs: any): Promise<void>;
     readonly pulumiAlreadyExists: boolean;
     readonly pulumiDir: string;
     readonly pulumiHome: string;
