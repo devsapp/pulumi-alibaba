@@ -306,6 +306,7 @@ export default class PulumiComponent {
     const nonOptionsArgs = parsedArgs.data?._;
 
     const isSilent = parsedArgs.data?.s || parsedArgs.data?.silent;
+    const isDebug = parsedArgs.data?.debug;
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
@@ -323,11 +324,18 @@ export default class PulumiComponent {
 
     // await runPulumiCmd(['import', 'alicloud:fc/service:Service' , 'import-test', 'python37-demo', '--yes', '--protect=false', `--stack ${stackName}`], process.cwd(), { PULUMI_HOME: this.pulumiHome, PULUMI_CONFIG_PASSPHRASE: this.pulumiConfigPassphrase }, console.log);
     // await this.installPlugins(cloudPlatform, stackName, stack);
-    const refreshRes = await stack.refresh({ onOutput: isSilent ? undefined : console.log });
-    this.logger.debug(`refresh res: ${JSON.stringify(refreshRes)}`);
-
-
-    const res = await stack.up({ onOutput: isSilent ? undefined : console.log });
+    let res;
+    if (isDebug) {
+      await stack.refresh({ onOutput: console.info });
+      res = await stack.up({ onOutput: console.info });
+    } else {
+      const refreshVm = core.spinner('refreshing stack...');
+      await stack.refresh();
+      refreshVm.succeed('refresh complete.');
+      const upVm = core.spinner('updating stack...');
+      res = await stack.up();
+      upVm.succeed('updated!');
+    }
 
     // const his = await stack.history();
     // const output = await stack.outputs();
@@ -352,6 +360,7 @@ export default class PulumiComponent {
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
+    const isDebug = parsedArgs.data?.debug;
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
@@ -375,8 +384,14 @@ export default class PulumiComponent {
     }
 
     // await this.installPlugins(cloudPlatform, stackName, stack);
-
-    const res = await stack.destroy({ onOutput: isSilent ? undefined : console.log });
+    let res;
+    if (isDebug) {
+      res = await stack.destroy({ onOutput: console.info });
+    } else {
+      const upVm = core.spinner('destroying stack...');
+      res = await stack.destroy();
+      upVm.succeed('destroyed!');
+    }
     // await stack.workspace.removeStack(stackName);
     return {
       stdout: res?.stdout,
@@ -399,6 +414,19 @@ export default class PulumiComponent {
     const pulumiPluginPath = path.join(this.pulumiHome, 'plugins');
     this.logger.debug(`Install plugin from ${srcPath} to ${pulumiPluginPath}`);
     await fse.copy(srcPath, pulumiPluginPath, { overwrite: false, recursive: true });
+  }
+
+  async installPluginFromUrl(inputs): Promise<void> {
+    // 传入 url
+    const url = inputs?.props?.url;
+    const version = inputs?.props?.version;
+    const pulumiPluginPath = path.join(this.pulumiHome, 'plugins');
+    const pluginLockfilePath = path.join(pulumiPluginPath, `resource-alicloud-${version}.lock`);
+    const pluginDirPath = path.join(pulumiPluginPath, `resource-alicloud-${version}`);
+    if (!await fse.pathExists(pluginLockfilePath) || !await fse.pathExists(pluginDirPath)) {
+      this.logger.debug(`Install plugin from ${url} to ${pulumiPluginPath}`);
+      await core.downloadRequest(url, pulumiPluginPath, { extract: true });
+    }
   }
 
   readonly pulumiAlreadyExists: boolean;
