@@ -330,11 +330,21 @@ export default class PulumiComponent {
       res = await stack.up({ onOutput: console.info });
     } else {
       const refreshVm = core.spinner('refreshing stack...');
-      await stack.refresh();
-      refreshVm.succeed('refresh complete.');
+      try {
+        await stack.refresh();
+        refreshVm.succeed('refresh complete.');
+      } catch (e) {
+        refreshVm.fail('error');
+        throw e;
+      }
       const upVm = core.spinner('updating stack...');
-      res = await stack.up();
-      upVm.succeed('updated!');
+      try {
+        res = await stack.up();
+        upVm.succeed('updated!');
+      } catch (e) {
+        upVm.fail('error');
+        throw e;
+      }
     }
 
     // const his = await stack.history();
@@ -388,9 +398,14 @@ export default class PulumiComponent {
     if (isDebug) {
       res = await stack.destroy({ onOutput: console.info });
     } else {
-      const upVm = core.spinner('destroying stack...');
-      res = await stack.destroy();
-      upVm.succeed('destroyed!');
+      const destroyVm = core.spinner('destroying stack...');
+      try {
+        res = await stack.destroy();
+        destroyVm.succeed('destroyed!');
+      } catch (e) {
+        destroyVm.fail('error');
+        throw e;
+      }
     }
     // await stack.workspace.removeStack(stackName);
     return {
