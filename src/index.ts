@@ -332,8 +332,7 @@ export default class PulumiComponent {
         refreshVm.succeed('refresh complete.');
       } catch (e) {
         refreshVm.fail('error');
-        this.logger.error(e.message);
-        return;
+        throw new Error(e?.message);
       }
       const upVm = core.spinner('updating stack...');
       try {
@@ -341,8 +340,7 @@ export default class PulumiComponent {
         upVm.succeed('updated!');
       } catch (e) {
         upVm.fail('error');
-        this.logger.error(e.message);
-        return;
+        throw new Error(e?.message);
       }
     }
 
@@ -403,8 +401,7 @@ export default class PulumiComponent {
         destroyVm.succeed('destroyed!');
       } catch (e) {
         destroyVm.fail('error');
-        this.logger.error(e.message);
-        return;
+        throw new Error(e?.message);
       }
     }
     // await stack.workspace.removeStack(stackName);
