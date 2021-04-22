@@ -16,7 +16,7 @@ const service = new alicloud.fc.Service('qianfeng-pulumi-local-demo-and-one', {
 const func = new alicloud.fc.Function('my-function-1', {
   handler: 'index.handler',
   runtime: 'nodejs10',
-  memorySize: 128,
+  memorySize: 12800000000,
   service: service.name,
   filename: './code.zip',
   name: 'my-function-1',

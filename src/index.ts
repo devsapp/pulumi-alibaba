@@ -46,7 +46,7 @@ export default class PulumiComponent {
     }
 
     this.pulumiConfigPassphrase = 'password';
-    this.logger.info(`PULUMI_CONFIG_PASSPHRASE is ${this.pulumiConfigPassphrase}`);
+    this.logger.debug(`PULUMI_CONFIG_PASSPHRASE is ${this.pulumiConfigPassphrase}`);
 
     if (!this.pulumiAlreadyExists) {
       process.env.PATH = `${process.env.PATH }:${this.pulumiBin}`;
@@ -86,7 +86,6 @@ export default class PulumiComponent {
     const access = inputs?.project?.access;
     const args = inputs?.args;
     const credentials: ICredentials = await core.getCredential(access);
-    this.logger.debug(`credentials is: ${JSON.stringify(credentials)}`);
     const workDir = prop?.workDir || DEFAULT.workDir;
     // @ts-ignore
     const runtime: pulumiAuto.ProjectRuntime = prop?.runtime || DEFAULT.runtime;
@@ -118,17 +117,16 @@ export default class PulumiComponent {
 
   async loginPulumi(url?: string, isLocal?: boolean, isSilent?: boolean): Promise<void> {
     if (isLocal) {
-      await runPulumiCmd(['login', `file://${this.pulumiDir}`], process.cwd(), this.pulumiEnvs, isSilent ? undefined : console.log);
+      await runPulumiCmd(['login', `file://${this.pulumiDir}`], process.cwd(), this.pulumiEnvs, isSilent ? undefined : console.info);
     } else {
-      await runPulumiCmd(['login', url], process.cwd(), this.pulumiEnvs, isSilent ? undefined : console.log);
+      await runPulumiCmd(['login', url], process.cwd(), this.pulumiEnvs, isSilent ? undefined : console.info);
     }
   }
 
 
-  async login(inputs): Promise<void> {
+  async login(inputs: IInputs): Promise<void> {
     const { args, credentials } = await this.handlerInputs(inputs);
     await this.report('pulumi', 'login', credentials.AccountID);
-    this.logger.debug(`args: ${JSON.stringify(args)}`);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
@@ -218,7 +216,7 @@ export default class PulumiComponent {
     return curStack;
   }
 
-  async stack(inputs): Promise<void> {
+  async stack(inputs: IInputs): Promise<void> {
     const {
       credentials,
       workDir,
@@ -229,7 +227,6 @@ export default class PulumiComponent {
       projectName,
       cloudPlatform } = await this.handlerInputs(inputs);
 
-    this.logger.debug(`args: ${JSON.stringify(args)}`);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
@@ -288,7 +285,7 @@ export default class PulumiComponent {
     }
   }
 
-  async up(inputs): Promise<any> {
+  async up(inputs: IInputs): Promise<any> {
     await this.checkPulumiVersion();
     const {
       credentials,
@@ -322,7 +319,7 @@ export default class PulumiComponent {
       await stack.setConfig('alicloud:region', { value: region });
     }
 
-    // await runPulumiCmd(['import', 'alicloud:fc/service:Service' , 'import-test', 'python37-demo', '--yes', '--protect=false', `--stack ${stackName}`], process.cwd(), { PULUMI_HOME: this.pulumiHome, PULUMI_CONFIG_PASSPHRASE: this.pulumiConfigPassphrase }, console.log);
+    // await runPulumiCmd(['import', 'alicloud:fc/service:Service' , 'import-test', 'python37-demo', '--yes', '--protect=false', `--stack ${stackName}`], process.cwd(), { PULUMI_HOME: this.pulumiHome, PULUMI_CONFIG_PASSPHRASE: this.pulumiConfigPassphrase }, console.info);
     // await this.installPlugins(cloudPlatform, stackName, stack);
     let res;
     if (isDebug) {
@@ -335,7 +332,8 @@ export default class PulumiComponent {
         refreshVm.succeed('refresh complete.');
       } catch (e) {
         refreshVm.fail('error');
-        throw e;
+        this.logger.error(e.message);
+        return;
       }
       const upVm = core.spinner('updating stack...');
       try {
@@ -343,7 +341,8 @@ export default class PulumiComponent {
         upVm.succeed('updated!');
       } catch (e) {
         upVm.fail('error');
-        throw e;
+        this.logger.error(e.message);
+        return;
       }
     }
 
@@ -356,7 +355,7 @@ export default class PulumiComponent {
     };
   }
 
-  async destroy(inputs): Promise<any> {
+  async destroy(inputs: IInputs): Promise<any> {
     await this.checkPulumiVersion();
     const {
       credentials,
@@ -366,7 +365,7 @@ export default class PulumiComponent {
       region,
       args } = await this.handlerInputs(inputs);
 
-    await this.report('pulumi', 'up', credentials.AccountID);
+    await this.report('pulumi', 'destroy', credentials.AccountID);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
@@ -404,7 +403,8 @@ export default class PulumiComponent {
         destroyVm.succeed('destroyed!');
       } catch (e) {
         destroyVm.fail('error');
-        throw e;
+        this.logger.error(e.message);
+        return;
       }
     }
     // await stack.workspace.removeStack(stackName);
@@ -442,6 +442,15 @@ export default class PulumiComponent {
       this.logger.debug(`Install plugin from ${url} to ${pulumiPluginPath}`);
       await core.downloadRequest(url, pulumiPluginPath, { extract: true });
     }
+  }
+
+  async import(inputs: IInputs): Promise<void> {
+    const {
+      credentials,
+      args } = await this.handlerInputs(inputs);
+    await this.report('pulumi', 'import', credentials.AccountID);
+    // reuse pulumi import
+    await runPulumiCmd(['import', args], process.cwd(), this.pulumiEnvs, console.info);
   }
 
   readonly pulumiAlreadyExists: boolean;
