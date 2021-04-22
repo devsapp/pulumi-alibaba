@@ -28,6 +28,7 @@ const MIN_PULUMI_VERSION = 'v2.21.0';
 export default class PulumiComponent {
   @core.HLogger('PULUMI-ALIBABA') logger: core.ILogger;
   constructor() {
+    process.setMaxListeners(0);
     if (fse.pathExistsSync(DEFAULT.pulumiHome) && commandExists.sync('pulumi')) {
       // pulumi cli exists
       this.pulumiDir = path.dirname(DEFAULT.pulumiHome);
@@ -81,7 +82,6 @@ export default class PulumiComponent {
   }
   // 解析入参
   async handlerInputs(inputs: IInputs) {
-    process.setMaxListeners(0);
     const prop: IProperties = inputs?.props;
     const access = inputs?.project?.access;
     const args = inputs?.args;
