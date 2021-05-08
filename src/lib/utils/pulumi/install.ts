@@ -32,7 +32,7 @@ async function install() {
 
     await fse.mkdirp(pulumiHome);
     await fse.mkdirp(tmpDir);
-
+    
     await downloadRequest(tarballUrl, tmpDir, { extract: true });
 
     const tmpPulumiDir = path.join(tmpDir, 'pulumi');
