@@ -1,6 +1,7 @@
 import * as pulumiAuto from '@pulumi/pulumi/x/automation';
 import * as core from '@serverless-devs/core';
 import { IInputs, ICredentials } from './interface';
+import PulumiStack from './lib/pulumi/stack';
 export default class PulumiComponent {
     logger: core.ILogger;
     constructor();
@@ -16,13 +17,11 @@ export default class PulumiComponent {
         stackName: string;
         projectName: string;
         access: string;
+        pulumiStack: PulumiStack;
     }>;
     loginPulumi(url?: string, isLocal?: boolean, isSilent?: boolean): Promise<void>;
     login(inputs: IInputs): Promise<void>;
     getStack(stackName: string, workDir: string, projectName?: string, runtime?: pulumiAuto.ProjectRuntime): Promise<pulumiAuto.Stack>;
-    createStack(workDir: string, projectName: string, runtime: pulumiAuto.ProjectRuntime, stackName: string): Promise<pulumiAuto.Stack>;
-    removeStack(workDir: string, stackName: string): Promise<void>;
-    listStack(workDir: string, stackName: string): Promise<pulumiAuto.StackSummary>;
     stack(inputs: IInputs): Promise<void>;
     up(inputs: IInputs): Promise<any>;
     destroy(inputs: IInputs): Promise<any>;

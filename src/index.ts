@@ -6,10 +6,11 @@ import commandExists from 'command-exists';
 import * as shell from 'shelljs';
 import * as core from '@serverless-devs/core';
 import * as util from 'util';
-import { getLatestVersionOfPackage } from './utils/npm-pkg';
+import { getLatestVersionOfPackage } from './lib/utils/npm-pkg';
 import * as _ from 'lodash';
 import semver from 'semver';
 import { IInputs, ICredentials, IProperties } from './interface';
+import PulumiStack from './lib/pulumi/stack';
 
 const { runPulumiCmd } = require('@pulumi/pulumi/x/automation/cmd');
 
@@ -28,7 +29,6 @@ const MIN_PULUMI_VERSION = 'v2.21.0';
 export default class PulumiComponent {
   @core.HLogger('PULUMI-ALIBABA') logger: core.ILogger;
   constructor() {
-    process.setMaxListeners(0);
     if (fse.pathExistsSync(DEFAULT.pulumiHome) && commandExists.sync('pulumi')) {
       // pulumi cli exists
       this.pulumiDir = path.dirname(DEFAULT.pulumiHome);
@@ -101,6 +101,21 @@ export default class PulumiComponent {
     if (SUPPORTED_RUNTIME.indexOf(runtime) < 0) {
       throw new Error(`\n${runtime} not supported now, supported runtime includes [${SUPPORTED_RUNTIME}]`);
     }
+    const wsOpts: pulumiAuto.LocalWorkspaceOptions = {
+      workDir,
+      pulumiHome: this.pulumiHome,
+      envVars: this.pulumiEnvs,
+      projectSettings: {
+        name: projectName,
+        runtime,
+      },
+    };
+
+    const localProgramArgs: pulumiAuto.LocalProgramArgs = {
+      stackName,
+      workDir,
+    };
+    const pulumiStack = new PulumiStack(stackName, localProgramArgs, wsOpts);
 
     return {
       credentials,
@@ -112,6 +127,7 @@ export default class PulumiComponent {
       stackName,
       projectName,
       access,
+      pulumiStack,
     };
   }
 
@@ -169,63 +185,16 @@ export default class PulumiComponent {
     return stack;
   }
 
-  async createStack(workDir: string, projectName: string, runtime: pulumiAuto.ProjectRuntime, stackName: string): Promise<pulumiAuto.Stack> {
-    const wsOpts: pulumiAuto.LocalWorkspaceOptions = {
-      workDir,
-      pulumiHome: this.pulumiHome,
-      envVars: this.pulumiEnvs,
-      projectSettings: {
-        name: projectName,
-        runtime,
-      },
-    };
-
-    // const inlineProgramArgs: pulumiAuto.InlineProgramArgs = {
-    //   stackName,
-    //   projectName,
-    //   program: p()
-    // };
-
-    const localProgramArgs: pulumiAuto.LocalProgramArgs = {
-      stackName,
-      workDir,
-    };
-    const stack = await pulumiAuto.LocalWorkspace.createOrSelectStack(localProgramArgs, wsOpts);
-
-    return stack;
-  }
-
-  async removeStack(workDir: string, stackName: string): Promise<void> {
-    const stack = await this.getStack(stackName, workDir);
-    if (!stack) {
-      this.logger.error(`Stack: ${stackName} not exist, please create it first!`);
-      return;
-    }
-
-    await stack.workspace.removeStack(stackName);
-  }
-
-  async listStack(workDir: string, stackName: string): Promise<pulumiAuto.StackSummary> {
-    const stack = await this.getStack(stackName, workDir);
-    if (!stack) {
-      this.logger.error(`Stack: ${stackName} not exist, please create it first!`);
-      return;
-    }
-
-    const curStack = await stack.workspace.stack();
-    return curStack;
-  }
 
   async stack(inputs: IInputs): Promise<void> {
     const {
       credentials,
-      workDir,
-      runtime,
       region,
       args,
       stackName,
       projectName,
-      cloudPlatform } = await this.handlerInputs(inputs);
+      cloudPlatform,
+      pulumiStack } = await this.handlerInputs(inputs);
 
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
@@ -251,25 +220,25 @@ export default class PulumiComponent {
       case 'init': {
         await this.report('pulumi', 'stack init', credentials.AccountID);
         this.logger.info(`Initializing stack ${stackName} of project ${projectName}...`);
-        const stack: pulumiAuto.Stack = await this.createStack(workDir, projectName, runtime, stackName);
+        await pulumiStack.create();
         this.logger.info(`Stack ${stackName} of project ${projectName} created.`);
         if (cloudPlatform === 'alicloud') {
-          await stack.setConfig('alicloud:secretKey', { value: credentials.AccessKeySecret, secret: true });
-          await stack.setConfig('alicloud:accessKey', { value: credentials.AccessKeyID, secret: true });
-          await stack.setConfig('alicloud:region', { value: region });
+          await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
+          await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
+          await pulumiStack.setConfig('alicloud:region', region, false);
         }
         break;
       }
       case 'rm': {
         await this.report('pulumi', 'stack rm', credentials.AccountID);
         this.logger.info(`Removing stack ${stackName}...`);
-        await this.removeStack(workDir, stackName);
+        await pulumiStack.remove();
         this.logger.info(`Stack ${stackName} of project ${projectName} removed.`);
         break;
       }
       case 'ls': {
         await this.report('pulumi', 'stack ls', credentials.AccountID);
-        const curStack: pulumiAuto.StackSummary = await this.listStack(workDir, stackName);
+        const curStack: pulumiAuto.StackSummary = await pulumiStack.list();
         if (curStack) {
           this.logger.info(`Summary of stack ${stackName} is: `);
           this.logger.log(util.inspect(curStack, true, null, true), 'green');
@@ -290,12 +259,9 @@ export default class PulumiComponent {
     const {
       credentials,
       cloudPlatform,
-      projectName,
-      stackName,
-      workDir,
-      runtime,
       region,
-      args } = await this.handlerInputs(inputs);
+      args,
+      pulumiStack } = await this.handlerInputs(inputs);
 
     await this.report('pulumi', 'up', credentials.AccountID);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
@@ -303,7 +269,7 @@ export default class PulumiComponent {
     const nonOptionsArgs = parsedArgs.data?._;
 
     const isSilent = parsedArgs.data?.s || parsedArgs.data?.silent;
-    const isDebug = parsedArgs.data?.debug;
+    const isDebug = parsedArgs.data?.debug || process.env?.temp_params?.includes('--debug');
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
@@ -312,45 +278,14 @@ export default class PulumiComponent {
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true, isSilent);
     }
-    const stack = await this.createStack(workDir, projectName, runtime, stackName);
+    await pulumiStack.create();
     if (cloudPlatform === 'alicloud') {
-      await stack.setConfig('alicloud:secretKey', { value: credentials.AccessKeySecret, secret: true });
-      await stack.setConfig('alicloud:accessKey', { value: credentials.AccessKeyID, secret: true });
-      await stack.setConfig('alicloud:region', { value: region });
+      await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
+      await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
+      await pulumiStack.setConfig('alicloud:region', region, false);
     }
-
+    return await pulumiStack.up(isDebug);
     // await runPulumiCmd(['import', 'alicloud:fc/service:Service' , 'import-test', 'python37-demo', '--yes', '--protect=false', `--stack ${stackName}`], process.cwd(), { PULUMI_HOME: this.pulumiHome, PULUMI_CONFIG_PASSPHRASE: this.pulumiConfigPassphrase }, console.info);
-    // await this.installPlugins(cloudPlatform, stackName, stack);
-    let res;
-    if (isDebug) {
-      await stack.refresh({ onOutput: console.info });
-      res = await stack.up({ onOutput: console.info });
-    } else {
-      const refreshVm = core.spinner('refreshing stack...');
-      try {
-        await stack.refresh();
-        refreshVm.succeed('refresh complete.');
-      } catch (e) {
-        refreshVm.fail('error');
-        throw new Error(e?.message);
-      }
-      const upVm = core.spinner('updating stack...');
-      try {
-        res = await stack.up();
-        upVm.succeed('updated!');
-      } catch (e) {
-        upVm.fail('error');
-        throw new Error(e?.message);
-      }
-    }
-
-    // const his = await stack.history();
-    // const output = await stack.outputs();
-
-    return {
-      stdout: res?.stdout,
-      stderr: res?.stderr,
-    };
   }
 
   async destroy(inputs: IInputs): Promise<any> {
@@ -367,7 +302,7 @@ export default class PulumiComponent {
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
     const nonOptionsArgs = parsedArgs.data?._;
-    const isDebug = parsedArgs.data?.debug;
+    const isDebug = parsedArgs.data?.debug || process.env?.temp_params?.includes('--debug');
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
@@ -444,10 +379,20 @@ export default class PulumiComponent {
   async import(inputs: IInputs): Promise<void> {
     const {
       credentials,
-      args } = await this.handlerInputs(inputs);
+      args,
+      workDir,
+      cloudPlatform,
+      region } = await this.handlerInputs(inputs);
     await this.report('pulumi', 'import', credentials.AccountID);
+    const isDebug: boolean = process.env?.temp_params?.includes('--debug');
+    if (cloudPlatform === 'alicloud') {
+      await runPulumiCmd(['config', 'set', 'alicloud:secretKey', credentials.AccessKeySecret, '--secret'], workDir, this.pulumiEnvs, isDebug ? console.info : undefined);
+      await runPulumiCmd(['config', 'set', 'alicloud:accessKey', credentials.AccessKeyID, '--secret'], workDir, this.pulumiEnvs, isDebug ? console.info : undefined);
+      await runPulumiCmd(['config', 'set', 'alicloud:region', region], workDir, this.pulumiEnvs, isDebug ? console.info : undefined);
+    }
+    const argsArr: string[] = ['import', ...args.trim().split(/\s+/)];
     // reuse pulumi import
-    await runPulumiCmd(['import', args], process.cwd(), this.pulumiEnvs, console.info);
+    await runPulumiCmd(argsArr, workDir, this.pulumiEnvs, isDebug ? console.info : undefined);
   }
 
   readonly pulumiAlreadyExists: boolean;
