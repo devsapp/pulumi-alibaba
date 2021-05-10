@@ -49,6 +49,7 @@ export default class PulumiStack {
   }
 
   async up(isDebug?: boolean): Promise<any> {
+    await this.create();
     let res: any;
     try {
       if (isDebug) {
@@ -90,6 +91,7 @@ export default class PulumiStack {
   }
 
   async destroy(isDebug?: boolean): Promise<any> {
+    await this.create();
     let res: any;
     try {
       if (isDebug) {
