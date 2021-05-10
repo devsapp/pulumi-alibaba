@@ -219,9 +219,9 @@ export default class PulumiComponent {
     switch (subCmd) {
       case 'init': {
         await this.report('pulumi', 'stack init', credentials.AccountID);
-        this.logger.info(`Initializing stack ${stackName} of project ${projectName}...`);
+        this.logger.info('Initializing stack...');
         await pulumiStack.create();
-        this.logger.info(`Stack ${stackName} of project ${projectName} created.`);
+        this.logger.info(`Stack ${stackName} of project ${projectName} initialized.`);
         if (cloudPlatform === 'alicloud') {
           await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
           await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
@@ -231,7 +231,7 @@ export default class PulumiComponent {
       }
       case 'rm': {
         await this.report('pulumi', 'stack rm', credentials.AccountID);
-        this.logger.info(`Removing stack ${stackName}...`);
+        this.logger.info('Removing stack...');
         await pulumiStack.remove();
         this.logger.info(`Stack ${stackName} of project ${projectName} removed.`);
         break;
@@ -278,7 +278,6 @@ export default class PulumiComponent {
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true, isSilent);
     }
-    await pulumiStack.create();
     if (cloudPlatform === 'alicloud') {
       await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
       await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
@@ -292,11 +291,8 @@ export default class PulumiComponent {
     await this.checkPulumiVersion();
     const {
       credentials,
-      cloudPlatform,
-      stackName,
-      workDir,
-      region,
-      args } = await this.handlerInputs(inputs);
+      args,
+      pulumiStack } = await this.handlerInputs(inputs);
 
     await this.report('pulumi', 'destroy', credentials.AccountID);
     const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
@@ -312,38 +308,7 @@ export default class PulumiComponent {
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true, isSilent);
     }
-
-    const stack = await this.getStack(stackName, workDir);
-
-    if (!stack) {
-      this.logger.error(`Stack: ${stackName} not exist, please create it first!`);
-      return;
-    }
-    if (cloudPlatform === 'alicloud') {
-      await stack.setConfig('alicloud:secretKey', { value: credentials.AccessKeySecret, secret: true });
-      await stack.setConfig('alicloud:accessKey', { value: credentials.AccessKeyID, secret: true });
-      await stack.setConfig('alicloud:region', { value: region });
-    }
-
-    // await this.installPlugins(cloudPlatform, stackName, stack);
-    let res;
-    if (isDebug) {
-      res = await stack.destroy({ onOutput: console.info });
-    } else {
-      const destroyVm = core.spinner('destroying stack...');
-      try {
-        res = await stack.destroy();
-        destroyVm.succeed('destroyed!');
-      } catch (e) {
-        destroyVm.fail('error');
-        throw new Error(e?.message);
-      }
-    }
-    // await stack.workspace.removeStack(stackName);
-    return {
-      stdout: res?.stdout,
-      stderr: res?.stderr,
-    };
+    return await pulumiStack.destroy(isDebug);
   }
 
 
@@ -392,7 +357,18 @@ export default class PulumiComponent {
     }
     const argsArr: string[] = ['import', ...args.trim().split(/\s+/)];
     // reuse pulumi import
-    await runPulumiCmd(argsArr, workDir, this.pulumiEnvs, isDebug ? console.info : undefined);
+    if (isDebug) {
+      await runPulumiCmd(argsArr, workDir, this.pulumiEnvs, console.info);
+    } else {
+      const importVm = core.spinner(`importing ${argsArr[1]}: ${argsArr[3]} into stack...`);
+      try {
+        await runPulumiCmd(argsArr, workDir, this.pulumiEnvs);
+        importVm.succeed(`${argsArr[1]}: ${argsArr[3]} is imported!`);
+      } catch (e) {
+        importVm.fail(`import ${argsArr[1]}: ${argsArr[3]} error`);
+        throw new Error(e?.message);
+      }
+    }
   }
 
   readonly pulumiAlreadyExists: boolean;
