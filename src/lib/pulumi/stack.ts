@@ -45,6 +45,7 @@ export default class PulumiStack {
   }
 
   async setConfig(configName: string, configValue: any, isSecret?: boolean): Promise<void> {
+    await this.create();
     await this.stack.setConfig(configName, { value: configValue, secret: isSecret });
   }
 
