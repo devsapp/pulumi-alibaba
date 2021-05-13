@@ -20,7 +20,7 @@ const func = new alicloud.fc.Function('my-function-1', {
   service: service.name,
   filename: './code.zip',
   name: 'my-function-1',
-});
+}, { parent: service, dependsOn: service });
 
 
 // Helper function.
@@ -35,4 +35,5 @@ const func = new alicloud.fc.Function('my-function-1', {
 // }
 
 // export const serviceName = service.id;
-export const functionName = func.id;
+export const serviceUrn = service.urn;
+export const functionUrn = func.urn;
