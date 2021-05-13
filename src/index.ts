@@ -85,6 +85,7 @@ export default class PulumiComponent {
     const prop: IProperties = inputs?.props;
     const access = inputs?.project?.access;
     const args = inputs?.args;
+
     const credentials: ICredentials = await core.getCredential(access);
     const workDir = prop?.workDir || DEFAULT.workDir;
     // @ts-ignore
@@ -295,20 +296,27 @@ export default class PulumiComponent {
       pulumiStack } = await this.handlerInputs(inputs);
 
     await this.report('pulumi', 'destroy', credentials.AccountID);
-    const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
+    const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local', 'target-dependents'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
-    const nonOptionsArgs = parsedArgs.data?._;
-    const isDebug = parsedArgs.data?.debug || process.env?.temp_params?.includes('--debug');
+
+    const nonOptionsArgs: any = parsedArgs.data?._;
+    const argsData: any = parsedArgs.data || {};
+    const isDebug = argsData?.debug || process.env?.temp_params?.includes('--debug');
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
       return;
     }
-    const isSilent = parsedArgs.data?.s || parsedArgs.data?.silent;
+    const target: any = argsData?.t || argsData?.target;
+    const targetArr: string[] = typeof (target) === 'string' ? [target] : target;
+    const targetDependents: boolean = argsData['target-dependents'];
+    const isSilent: boolean = argsData?.s || argsData?.silent;
+
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true, isSilent);
     }
-    return await pulumiStack.destroy(isDebug);
+
+    return await pulumiStack.destroy({ isDebug, target: targetArr, targetDependents });
   }
 
 

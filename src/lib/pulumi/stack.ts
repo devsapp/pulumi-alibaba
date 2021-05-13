@@ -91,16 +91,18 @@ export default class PulumiStack {
     };
   }
 
-  async destroy(isDebug?: boolean): Promise<any> {
+  async destroy(options?: any): Promise<any> {
+    const { isDebug, target, targetDependents } = options;
+    this.logger.debug(`destroy target: ${target}, targetDependents is : ${targetDependents}`);
     await this.create();
     let res: any;
     try {
       if (isDebug) {
-        res = await this.stack.destroy({ onOutput: console.info });
+        res = await this.stack.destroy({ onOutput: console.info, target, targetDependents });
       } else {
         const destroyVm = core.spinner('destroying stack...');
         try {
-          res = await this.stack.destroy();
+          res = await this.stack.destroy({ target, targetDependents });
           destroyVm.succeed('destroyed!');
         } catch (e) {
           destroyVm.fail('error');
