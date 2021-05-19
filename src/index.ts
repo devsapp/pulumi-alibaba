@@ -23,7 +23,7 @@ const DEFAULT = {
 
 const SUPPORTED_CLOUD_PLATFORMS = ['alicloud'];
 const SUPPORTED_RUNTIME = ['nodejs', 'go', 'python', 'dotnet'];
-const PULUMI_INSTALL_FILE_PATH = path.join(__dirname, 'utils/pulumi/install.js');
+const PULUMI_INSTALL_FILE_PATH = path.join(__dirname, 'lib/utils/pulumi/install.js');
 const MIN_PULUMI_VERSION = 'v2.21.0';
 
 export default class PulumiComponent {
