@@ -69,10 +69,14 @@ export default class PulumiComponent {
       uid = credentials.AccountID;
     }
 
-    core.reportComponent(componentName, {
-      command,
-      uid,
-    });
+    try {
+      core.reportComponent(componentName, {
+        command,
+        uid,
+      });
+    } catch (e) {
+      this.logger.warn(`Component ${componentName} report error: ${e.message}`);
+    }
   }
   async checkPulumiVersion() {
     const curPulumiVersion = (await runPulumiCmd(['version'], process.cwd(), this.pulumiEnvs)).stdout;
@@ -373,7 +377,7 @@ export default class PulumiComponent {
         await runPulumiCmd(argsArr, workDir, this.pulumiEnvs);
         importVm.succeed(`${argsArr[1]}: ${argsArr[3]} is imported!`);
       } catch (e) {
-        importVm.fail(`import ${argsArr[1]}: ${argsArr[3]} error`);
+        importVm.fail(`\nimport ${argsArr[1]}: ${argsArr[3]} error`);
         throw new Error(e?.message);
       }
     }
