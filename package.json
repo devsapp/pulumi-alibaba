@@ -1,12 +1,12 @@
 {
   "name": "pulumi-alibaba",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "main": "./dist/index.js",
   "dependencies": {
     "@pulumi/pulumi": "2.24.1",
     "@serverless-devs/core": "^0.0.x",
     "command-exists": "^1.2.9",
-    "@types/fs-extra": "^9.0.0",
+    "fs-extra": "^10.0.0",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4",
     "uuid": "^8.0.0",
