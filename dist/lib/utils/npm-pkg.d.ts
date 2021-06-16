@@ -1,1 +1,1 @@
-export declare function getLatestVersionOfPackage(pkgName: any): string;
+export declare function getLatestVersionOfPackage(pkgName: any): any;
