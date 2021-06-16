@@ -11,6 +11,7 @@ import * as _ from 'lodash';
 import semver from 'semver';
 import { IInputs, ICredentials, IProperties } from './interface';
 import PulumiStack from './lib/pulumi/stack';
+import StdoutFormatter from './lib/stdout-formatter';
 
 const { runPulumiCmd } = require('@pulumi/pulumi/x/automation/cmd');
 
@@ -47,7 +48,7 @@ export default class PulumiComponent {
     }
 
     this.pulumiConfigPassphrase = 'password';
-    this.logger.debug(`PULUMI_CONFIG_PASSPHRASE is ${this.pulumiConfigPassphrase}`);
+    this.logger.debug(`Reminder pulumi: PULUMI_CONFIG_PASSPHRASE is ${this.pulumiConfigPassphrase}`);
 
     if (!this.pulumiAlreadyExists) {
       process.env.PATH = `${process.env.PATH }:${this.pulumiBin}`;
@@ -220,13 +221,15 @@ export default class PulumiComponent {
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true);
     }
+    await StdoutFormatter.initStdout();
 
     switch (subCmd) {
       case 'init': {
         await this.report('pulumi', 'stack init', credentials.AccountID);
-        this.logger.info('Initializing stack...');
+        this.logger.info(StdoutFormatter.stdoutFormatter?.create('pulumi stack', `${stackName} of project ${projectName}`));
+        this.logger.debug('Initializing stack...');
         await pulumiStack.create();
-        this.logger.info(`Stack ${stackName} of project ${projectName} initialized.`);
+        this.logger.debug(`Stack ${stackName} of project ${projectName} initialized.`);
         if (cloudPlatform === 'alicloud') {
           await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
           await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
@@ -236,9 +239,10 @@ export default class PulumiComponent {
       }
       case 'rm': {
         await this.report('pulumi', 'stack rm', credentials.AccountID);
-        this.logger.info('Removing stack...');
+        this.logger.info(StdoutFormatter.stdoutFormatter?.remove('pulumi stack', `${stackName} of project ${projectName}`))
+        this.logger.debug('Removing stack...');
         await pulumiStack.remove();
-        this.logger.info(`Stack ${stackName} of project ${projectName} removed.`);
+        this.logger.debug(`Stack ${stackName} of project ${projectName} removed.`);
         break;
       }
       case 'ls': {
