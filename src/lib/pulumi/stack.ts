@@ -49,13 +49,13 @@ export default class PulumiStack {
     await this.stack.setConfig(configName, { value: configValue, secret: isSecret });
   }
 
-  async up(isDebug?: boolean): Promise<any> {
+  async up(target: string[], targetDependents?: boolean, isDebug?: boolean): Promise<any> {
     await this.create();
     let res: any;
     try {
       if (isDebug) {
         await this.stack.refresh({ onOutput: console.info });
-        res = await this.stack.up({ onOutput: console.info });
+        res = await this.stack.up({ onOutput: console.info, target, targetDependents });
       } else {
         const refreshVm = core.spinner(`refreshing stack ${this.stackName}...`);
         try {
@@ -67,7 +67,7 @@ export default class PulumiStack {
         }
         const upVm = core.spinner(`updating stack ${this.stackName}...`);
         try {
-          res = await this.stack.up();
+          res = await this.stack.up({ target, targetDependents });
           upVm.succeed(`stack ${this.stackName} updated!`);
         } catch (e) {
           upVm.fail(`update stack ${this.stackName} error`);

@@ -65,7 +65,7 @@ export default class PulumiComponent {
 
   async report(componentName: string, command: string, accountID?: string, access?: string): Promise<void> {
     let uid: string = accountID;
-    if (_.isEmpty(accountID)) {
+    if (!accountID && access) {
       const credentials: ICredentials = await core.getCredential(access);
       uid = credentials.AccountID;
     }
@@ -239,7 +239,7 @@ export default class PulumiComponent {
       }
       case 'rm': {
         await this.report('pulumi', 'stack rm', credentials.AccountID);
-        this.logger.info(StdoutFormatter.stdoutFormatter?.remove('pulumi stack', `${stackName} of project ${projectName}`))
+        this.logger.info(StdoutFormatter.stdoutFormatter?.remove('pulumi stack', `${stackName} of project ${projectName}`));
         this.logger.debug('Removing stack...');
         await pulumiStack.remove();
         this.logger.debug(`Stack ${stackName} of project ${projectName} removed.`);
@@ -269,16 +269,23 @@ export default class PulumiComponent {
       credentials,
       cloudPlatform,
       region,
-      args,
       pulumiStack } = await this.handlerInputs(inputs);
 
     await this.report('pulumi', 'up', credentials.AccountID);
-    const parsedArgs: {[key: string]: any} = core.commandParse({ args }, { boolean: ['s', 'silent', 'local'] });
+    const parsedArgs: {[key: string]: any} = core.commandParse(inputs, { boolean: ['s', 'silent', 'local'] });
     this.logger.debug(`parsedArgs: ${JSON.stringify(parsedArgs)}`);
-    const nonOptionsArgs = parsedArgs.data?._;
+    const argsData = parsedArgs?.data || {};
+    const nonOptionsArgs = argsData?._;
 
-    const isSilent = parsedArgs.data?.s || parsedArgs.data?.silent;
-    const isDebug = parsedArgs.data?.debug || process.env?.temp_params?.includes('--debug');
+
+    const isSilent = argsData?.s || argsData?.silent;
+    const isDebug = argsData?.debug || process.env?.temp_params?.includes('--debug');
+    const target: any = argsData?.t || argsData?.target;
+    const targetArr: string[] = typeof (target) === 'string' ? [target] : target;
+    const targetDependents: boolean = argsData['target-dependents'];
+
+    !_.isEmpty(target) && this.logger.info(`Using target: ${target}`);
+
     if (!_.isEmpty(nonOptionsArgs)) {
       this.logger.error(`error: unexpect argument ${nonOptionsArgs}`);
       // help info
@@ -292,7 +299,7 @@ export default class PulumiComponent {
       await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);
       await pulumiStack.setConfig('alicloud:region', region, false);
     }
-    return await pulumiStack.up(isDebug);
+    return await pulumiStack.up(targetArr, targetDependents, isDebug);
     // await runPulumiCmd(['import', 'alicloud:fc/service:Service' , 'import-test', 'python37-demo', '--yes', '--protect=false', `--stack ${stackName}`], process.cwd(), { PULUMI_HOME: this.pulumiHome, PULUMI_CONFIG_PASSPHRASE: this.pulumiConfigPassphrase }, console.info);
   }
 
