@@ -12,6 +12,6 @@ export default class PulumiStack {
     remove(): Promise<void>;
     list(): Promise<pulumiAuto.StackSummary | undefined>;
     setConfig(configName: string, configValue: any, isSecret?: boolean): Promise<void>;
-    up(isDebug?: boolean): Promise<any>;
+    up(target: string[], targetDependents?: boolean, isDebug?: boolean): Promise<any>;
     destroy(options?: any): Promise<any>;
 }

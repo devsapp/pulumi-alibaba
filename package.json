@@ -9,10 +9,10 @@
     "fs-extra": "^10.0.0",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4",
-    "uuid": "^8.0.0",
     "lodash": "^4.14.168",
     "semver": "^7.3.5"
   },
+  "autoInstall": false,
   "devDependencies": {
     "@types/eslint": "^7.2.6",
     "@types/jest": "^26.0.10",
@@ -24,14 +24,12 @@
     "ts-loader": "^8.0.14",
     "ts-node": "^9.1.1",
     "typescript": "^3.9.7",
-    "webpack": "^4.46.0",
-    "webpack-cli": "^4.4.0"
+    "@zeit/ncc": "^0.22.3"
   },
   "scripts": {
     "dev": "npx tsc -w -p tsconfig.json",
-    "prebuild": "rimraf dist",
-    "build": "rm -rf node_modules && rm -rf package-lock.json && npm i && npx tsc -p tsconfig.json",
-    "build:component": "npx webpack --mode=production",
+    "prebuild": "rm -rf node_modules && rm -rf package-lock.json && npm i && rm -rf dist",
+    "build": "npm run fix && npm run lint && ncc build src/index.ts -m -o dist",
     "test": "jest",
     "test:cov": "jest --coverage",
     "lint": "f2elint scan",
