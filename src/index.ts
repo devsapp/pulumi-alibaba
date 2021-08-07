@@ -226,7 +226,6 @@ export default class PulumiComponent {
     switch (subCmd) {
       case 'init': {
         await this.report('pulumi', 'stack init', credentials.AccountID);
-        this.logger.info(StdoutFormatter.stdoutFormatter?.create('pulumi stack', `${stackName} of project ${projectName}`));
         this.logger.debug('Initializing stack...');
         await pulumiStack.create();
         this.logger.debug(`Stack ${stackName} of project ${projectName} initialized.`);
@@ -294,6 +293,7 @@ export default class PulumiComponent {
     if (!await fse.pathExists(path.join(this.pulumiHome, 'credentials.json'))) {
       await this.loginPulumi(undefined, true, isSilent);
     }
+    await pulumiStack.create();
     if (cloudPlatform === 'alicloud') {
       await pulumiStack.setConfig('alicloud:secretKey', credentials.AccessKeySecret, true);
       await pulumiStack.setConfig('alicloud:accessKey', credentials.AccessKeyID, true);

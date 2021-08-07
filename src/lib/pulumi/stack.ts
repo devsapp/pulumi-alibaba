@@ -17,7 +17,14 @@ export default class PulumiStack {
   }
 
   async create(): Promise<void> {
-    this.stack = await pulumiAuto.LocalWorkspace.createOrSelectStack(this.localProgramArgs, this.wsOpts);
+    const vm = core.spinner(`Creating/Selecting stack ${this.stackName}...`);
+    try {
+      this.stack = await pulumiAuto.LocalWorkspace.createOrSelectStack(this.localProgramArgs, this.wsOpts);
+      vm.succeed(`Create/Select stack ${this.stackName} successfully.`);
+    } catch (e) {
+      vm.fail(`Create/Select stack ${this.stackName} failed.`);
+      throw e;
+    }
   }
 
   async select(): Promise<void> {
@@ -45,12 +52,12 @@ export default class PulumiStack {
   }
 
   async setConfig(configName: string, configValue: any, isSecret?: boolean): Promise<void> {
-    await this.create();
+    // await this.create();
     await this.stack.setConfig(configName, { value: configValue, secret: isSecret });
   }
 
   async up(target: string[], targetDependents?: boolean, isDebug?: boolean): Promise<any> {
-    await this.create();
+    // await this.create();
     let res: any;
     try {
       if (isDebug) {
